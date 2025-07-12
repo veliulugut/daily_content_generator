@@ -1,17 +1,27 @@
 package main
 
 import (
-	"daily_content_generator/internal/summarizer"
+	"daily_content_generator/internal/fetcher"
 	"fmt"
 )
 
 func main() {
 
-	// Example usage of the summarizer
-	summary, err := summarizer.SummarizeGeminiContent("golang 1.24.1 released with new features and improvements")
+	// // Example usage of the summarizer
+	// summary, err := summarizer.SummarizeGeminiContent("golang 1.24.1 released with new features and improvements")
+	// if err != nil {
+	// 	fmt.Println("Error summarizing content:", err)
+	// }
+
+	// fmt.Println("Summary:", summary)
+
+	// Example usage of the fetcher
+	articles, err := fetcher.GetDevToArticles()
 	if err != nil {
-		fmt.Println("Error summarizing content:", err)
+		panic(err)
 	}
 
-	fmt.Println("Summary:", summary)
+	for _, article := range articles {
+		fmt.Println(article)
+	}
 }
