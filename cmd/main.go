@@ -7,6 +7,7 @@ import (
 
 func main() {
 
+	// Example usage of the summarizer
 	summary, err := summarizer.SummarizeGeminiContent("golang 1.24.1 released with new features and improvements")
 	if err != nil {
 		fmt.Println("Error summarizing content:", err)
