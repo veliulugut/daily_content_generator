@@ -1,6 +1,7 @@
 package fetcher
 
 import (
+	"daily_content_generator/internal/generator"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,13 +9,14 @@ import (
 )
 
 type Article struct {
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	URL         string   `json:"url"`
-	TagList     []string `json:"tag_list"`
+	Title                string   `json:"title"`
+	Description          string   `json:"description"`
+	URL                  string   `json:"url"`
+	TagList              []string `json:"tag_list"`
+	PublicReactionsCount int      `json:"public_reactions_count"`
 }
 
-func GetDevToArticles() ([]string, error) {
+func GetDevToArticles() ([]generator.ContentItem, error) {
 	resp, err := http.Get("https://dev.to/api/articles")
 	if err != nil {
 		return nil, err
@@ -36,15 +38,18 @@ func GetDevToArticles() ([]string, error) {
 		return nil, fmt.Errorf("error unmarshalling articles: %w", err)
 	}
 
-	var articleSummaries []string
+	var items []generator.ContentItem
 	for _, article := range articles {
-		summary := fmt.Sprintf("**%s**\n%s\n[Read more](%s)", article.Title, article.Description, article.URL)
+		summary := fmt.Sprintf("**%s**\n%s\n[Read more](%s)\nReactions: %d", article.Title, article.Description, article.URL, article.PublicReactionsCount)
 		if len(article.TagList) > 0 {
 			summary += fmt.Sprintf("\nTags: %s", article.TagList)
 		}
 
-		articleSummaries = append(articleSummaries, summary)
+		items = append(items, generator.ContentItem{
+			Text:       summary,
+			Popularity: article.PublicReactionsCount,
+		})
 	}
 
-	return articleSummaries, nil
+	return items, nil
 }

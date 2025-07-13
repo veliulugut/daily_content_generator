@@ -1,9 +1,11 @@
 package fetcher
 
 import (
+	"daily_content_generator/internal/generator"
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -17,22 +19,28 @@ type TrendingProject struct {
 	TodayStars  string
 }
 
-func GetTrendingProjects() ([]string, error) {
+func GetTrendingProjects() ([]generator.ContentItem, error) {
+	var items []generator.ContentItem
+
 	doc, err := fetchGitHubTrendingPage()
 	if err != nil {
 		return nil, err
 	}
 
-	var projects []string
 	doc.Find("article.Box-row").Each(func(i int, s *goquery.Selection) {
 		project := extractProjectInfo(s)
 		if project.Name != "" {
 			projectInfo := formatProjectInfo(project)
-			projects = append(projects, projectInfo)
+			popularity := parseStarCount(project.Stars)
+			items = append(items, generator.ContentItem{
+				Text:       projectInfo,
+				Popularity: popularity,
+			})
 		}
+
 	})
 
-	return projects, nil
+	return items, nil
 }
 
 func fetchGitHubTrendingPage() (*goquery.Document, error) {
@@ -130,4 +138,14 @@ func extractTodayStars(s *goquery.Selection) string {
 		return matches[1]
 	}
 	return ""
+}
+
+func parseStarCount(stars string) int {
+	clean := strings.ReplaceAll(stars, ",", "")
+	n, err := strconv.Atoi(clean)
+	if err != nil {
+		return 0
+	}
+
+	return n
 }
