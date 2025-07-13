@@ -58,24 +58,64 @@ func formatContentForEmail(content string) string {
 	// Clean HTML tags first
 	content = cleanHTML(content)
 
-	// Split content into paragraphs
-	paragraphs := strings.Split(content, "\n\n")
-	var formattedParagraphs []string
+	// Split content into sections based on emoji headers
+	sections := strings.Split(content, "\n\n")
+	var formattedSections []string
 
-	for _, para := range paragraphs {
-		para = strings.TrimSpace(para)
-		if para == "" {
+	for _, section := range sections {
+		section = strings.TrimSpace(section)
+		if section == "" {
 			continue
 		}
 
-		// Apply markdown formatting
-		para = formatMarkdown(para)
-
-		// Wrap in paragraph tags for HTML email
-		formattedParagraphs = append(formattedParagraphs, "<p>"+para+"</p>")
+		// Check if this is a section header (starts with emoji)
+		if isEmojiHeader(section) {
+			// Format as main header
+			formattedSections = append(formattedSections, fmt.Sprintf("<h2>%s</h2>", section))
+		} else if isProjectTitle(section) {
+			// Format as project/article title
+			formattedSections = append(formattedSections, fmt.Sprintf("<h3>%s</h3>", section))
+		} else {
+			// Regular paragraph content
+			para := formatMarkdown(section)
+			formattedSections = append(formattedSections, fmt.Sprintf("<p>%s</p>", para))
+		}
 	}
 
-	return strings.Join(formattedParagraphs, "\n\n")
+	return strings.Join(formattedSections, "\n\n")
+}
+
+// isEmojiHeader checks if line starts with emoji (section header)
+func isEmojiHeader(line string) bool {
+	emojiPrefixes := []string{"🚀", "📖", "🛠️", "💡"}
+	for _, prefix := range emojiPrefixes {
+		if strings.HasPrefix(line, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// isProjectTitle checks if line looks like a project/article title
+func isProjectTitle(line string) bool {
+	// Lines that don't start with emoji but contain project indicators
+	indicators := []string{"(", "⭐", "👍", "Tags:"}
+	for _, indicator := range indicators {
+		if strings.Contains(line, indicator) {
+			return false // This is description/metadata, not title
+		}
+	}
+
+	// Check if it's a standalone title (not too long, doesn't start with lowercase)
+	trimmed := strings.TrimSpace(line)
+	if len(trimmed) > 0 && len(trimmed) < 100 {
+		// If it doesn't end with punctuation that suggests it's part of a sentence
+		if !strings.HasSuffix(trimmed, ".") && !strings.HasSuffix(trimmed, "!") && !strings.HasSuffix(trimmed, "?") {
+			return true
+		}
+	}
+
+	return false
 }
 
 func cleanHTML(content string) string {

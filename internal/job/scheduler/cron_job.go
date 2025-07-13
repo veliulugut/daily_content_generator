@@ -28,14 +28,12 @@ func InitialCronJob() {
 		jobs.GenerateAndSendDigest()
 	})
 
-	// test job every 1 minute
 	c.AddFunc("@every 1m", func() {
-		log.Println("Cron: Every 1 minute")
+		log.Println("Scheduling daily digest job at 9:00 PM")
 		jobs.GenerateAndSendDigest()
 	})
 
 	c.Start()
 
 	select {}
-
 }

@@ -3,6 +3,7 @@ package fetcher
 import (
 	"daily_content_generator/internal/generator"
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -20,33 +21,84 @@ type TrendingProject struct {
 }
 
 func GetTrendingProjects() ([]generator.ContentItem, error) {
-	var items []generator.ContentItem
+	log.Println("Fetching GitHub trending projects...")
 
-	doc, err := fetchGitHubTrendingPage()
+	var items []generator.ContentItem
+	seenProjects := make(map[string]bool)
+
+	languages := []string{
+		"", // All languages (trending overall)
+		"javascript",
+		"python",
+		"go",
+		"typescript",
+		"rust",
+		"java",
+	}
+
+	for _, lang := range languages {
+		projects, err := fetchTrendingByLanguage(lang)
+		if err != nil {
+			langLabel := lang
+			if langLabel == "" {
+				langLabel = "all"
+			}
+			log.Printf("Error fetching %s projects: %v", langLabel, err)
+			continue
+		}
+
+		for _, project := range projects {
+			projectKey := strings.ToLower(project.Name)
+			if !seenProjects[projectKey] && project.Name != "" {
+				seenProjects[projectKey] = true
+				projectInfo := formatProjectInfo(project)
+				popularity := parseStarCount(project.Stars)
+
+				todayStars := parseStarCount(project.TodayStars)
+				popularity += todayStars * 10
+
+				items = append(items, generator.ContentItem{
+					Text:       projectInfo,
+					Popularity: popularity,
+				})
+			}
+		}
+	}
+
+	log.Printf("GitHub: Collected %d projects", len(items))
+	return items, nil
+}
+
+func fetchTrendingByLanguage(language string) ([]TrendingProject, error) {
+	url := "https://github.com/trending"
+	if language != "" {
+		url += "/" + language
+	}
+	url += "?since=daily"
+	doc, err := fetchGitHubPage(url)
 	if err != nil {
 		return nil, err
 	}
 
+	var projects []TrendingProject
 	doc.Find("article.Box-row").Each(func(i int, s *goquery.Selection) {
-		project := extractProjectInfo(s)
-		if project.Name != "" {
-			projectInfo := formatProjectInfo(project)
-			popularity := parseStarCount(project.Stars)
-			items = append(items, generator.ContentItem{
-				Text:       projectInfo,
-				Popularity: popularity,
-			})
+		if i >= 5 {
+			return
 		}
 
+		project := extractProjectInfo(s)
+		if project.Name != "" && project.Description != "" {
+			projects = append(projects, project)
+		}
 	})
 
-	return items, nil
+	return projects, nil
 }
 
-func fetchGitHubTrendingPage() (*goquery.Document, error) {
-	res, err := http.Get("https://github.com/trending")
+func fetchGitHubPage(url string) (*goquery.Document, error) {
+	res, err := http.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching trending projects: %w", err)
+		return nil, fmt.Errorf("error fetching page %s: %w", url, err)
 	}
 	defer res.Body.Close()
 
@@ -66,11 +118,16 @@ func formatProjectInfo(project TrendingProject) string {
 	}
 
 	if project.Description != "" {
-		info += fmt.Sprintf("\n- %s", project.Description)
+		// Clean and limit description length
+		desc := strings.TrimSpace(project.Description)
+		if len(desc) > 120 {
+			desc = desc[:117] + "..."
+		}
+		info += fmt.Sprintf("\n%s", desc)
 	}
 
 	if project.Stars != "" {
-		info += fmt.Sprintf("\n- ⭐ %s stars", project.Stars)
+		info += fmt.Sprintf("\n⭐ %s stars", project.Stars)
 	}
 
 	if project.TodayStars != "" {

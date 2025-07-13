@@ -9,7 +9,7 @@ import (
 )
 
 func GenerateAndSendDigest() {
-	log.Println("Starting digest generation and sending process...")
+	log.Println("Starting daily digest generation...")
 
 	// devTo fetch data
 	devtoData, err := fetcher.GetDevToArticles()
@@ -24,14 +24,16 @@ func GenerateAndSendDigest() {
 	}
 
 	allItems := append(devtoData, githubData...)
+	log.Printf("Total items collected: %d (DevTo: %d, GitHub: %d)",
+		len(allItems), len(devtoData), len(githubData))
 
 	if len(allItems) == 0 {
 		log.Println("No items to send in the digest.")
 		return
 	}
 
-	// summarize the top 5 most popular content
-	content, err := generator.GenerateContentByPopularity(allItems, 5, "")
+	// summarize the top 8 most popular content (increased from 5)
+	content, err := generator.GenerateContentByPopularity(allItems, 8, "")
 	if err != nil {
 		log.Printf("Error generating content: %v", err)
 		return
@@ -46,6 +48,5 @@ func GenerateAndSendDigest() {
 		return
 	}
 
-	log.Println("Digest generated and sent successfully.")
-
+	log.Println("Daily digest sent successfully!")
 }
