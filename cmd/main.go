@@ -1,27 +1,22 @@
 package main
 
 import (
-	"daily_content_generator/internal/fetcher"
-	"fmt"
+	job "daily_content_generator/internal/job/scheduler"
+	"log"
 )
 
 func main() {
 
-	// // Example usage of the summarizer
-	// summary, err := summarizer.SummarizeGeminiContent("golang 1.24.1 released with new features and improvements")
+	// subject := "Daily Newsletter"
+	// content := "Hello, this is your daily newsletter content."
+
+	// err := mailer.SendNewsletter(subject, content)
 	// if err != nil {
-	// 	fmt.Println("Error summarizing content:", err)
+	// 	panic(err)
 	// }
 
-	// fmt.Println("Summary:", summary)
+	log.Println("Daily Content Generator is running...")
 
-	// Example usage of the fetcher
-	articles, err := fetcher.GetDevToArticles()
-	if err != nil {
-		panic(err)
-	}
+	job.InitialCronJob()
 
-	for _, article := range articles {
-		fmt.Println(article)
-	}
 }

@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -32,13 +35,56 @@ func SummarizeGeminiContent(input string) (string, error) {
 		return "", err
 	}
 
+	// Extra cleaning to ensure no HTML tags remain
+	summary = cleanGeminiResponse(summary)
+
 	return summary, nil
 }
 
+func cleanGeminiResponse(content string) string {
+	// Remove any HTML tags that might have slipped through
+	re := regexp.MustCompile(`<[^>]*>`)
+	content = re.ReplaceAllString(content, "")
+
+	// Remove HTML entities
+	content = strings.ReplaceAll(content, "&lt;", "<")
+	content = strings.ReplaceAll(content, "&gt;", ">")
+	content = strings.ReplaceAll(content, "&amp;", "&")
+	content = strings.ReplaceAll(content, "&quot;", "\"")
+	content = strings.ReplaceAll(content, "&nbsp;", " ")
+
+	// Remove any remaining angle brackets
+	content = strings.ReplaceAll(content, "<", "")
+	content = strings.ReplaceAll(content, ">", "")
+
+	// Clean up extra whitespace
+	content = strings.TrimSpace(content)
+
+	return content
+}
+
 func getAPIKey() (string, error) {
-	err := godotenv.Load("../.env")
-	if err != nil {
-		return "", fmt.Errorf("error loading .env file: %w", err)
+	// Try multiple paths for .env file
+	envPaths := []string{
+		".env",          // When running from root directory
+		"../.env",       // When running from cmd directory
+		"../../.env",    // When running from internal subdirectory
+		"../../../.env", // When running from internal/subdirectory
+	}
+
+	var lastErr error
+	for _, path := range envPaths {
+		err := godotenv.Load(path)
+		if err == nil {
+			break // Successfully loaded
+		}
+		lastErr = err
+	}
+
+	// If all paths failed, try to continue with system environment variables
+	if lastErr != nil {
+		// Don't return error immediately, maybe env vars are already set
+		log.Printf("Warning: Could not load .env file, using system environment variables: %v", lastErr)
 	}
 
 	apiKey := os.Getenv("GEMINI_API_KEY")
@@ -63,34 +109,37 @@ You will be given a list of **headlines or topics**. For each item, imagine you 
 ## Your Objective
 
 - Present the content clearly and naturally, like a daily or weekly technical newsletter for developers.
-- Each summary should explain **what the project/tool/topic is**, **why it’s interesting**, and **who might benefit from it**.
+- Each summary should explain **what the project/tool/topic is**, **why it's interesting**, and **who might benefit from it**.
 - Rewrite everything in your own words; do not copy source phrasing.
 
 ## Content Structure
 
-- Output the final result as **plain text only**.
+- Output the final result as **PURE PLAIN TEXT ONLY**.
+- NEVER use HTML tags, XML tags, or any markup language.
+- NEVER use <p>, </p>, <div>, </div>, <br>, <span>, or any other HTML elements.
 - You may start with a brief 1–2 sentence introduction.
-- Group content logically using paragraphs or bullet points, but do not use Markdown formatting (no headings, lists, or special markup).
-- Ensure the text is readable and meaningful.
+- Use natural paragraphs separated by double line breaks.
+- Do not use Markdown formatting (no headings, lists, or special markup).
+- Write in flowing, natural prose format.
 - Order items by relevance or thematic relation.
 
 ## Style and Tone Guidelines
 
 - Write as a human tech editor, not an AI assistant.
 - Use a professional, clear, and natural tone. Avoid promotional or hype language.
-- Avoid clichés like “revolutionary”, “game-changer”, or “AI-powered” unless technically justified.
+- Avoid clichés like "revolutionary", "game-changer", or "AI-powered" unless technically justified.
 - Do not use emojis.
 - Avoid generic or vague statements. Highlight what is genuinely useful or innovative to developers.
 
-## What “Deep Research” Means
+## What "Deep Research" Means
 
 - When given a headline, imagine you are browsing the GitHub repo README, checking issues, reading Hacker News comments, or skimming blog posts related to it.
 - Use this imagined context to produce meaningful insights and original summaries.
 - If a headline does not yield meaningful content, you may omit it.
 
-## Output
+## Output Format
 
-Return only the final editorial summaries as **plain text**, without any Markdown or other formatting. Do not include any extra explanations or notes.`,
+Return only the final editorial summaries as **PURE PLAIN TEXT**. No HTML, no XML, no markup whatsoever. Just clean, readable text that flows naturally from paragraph to paragraph.`,
 					},
 					{
 						"text": input,
